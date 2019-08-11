@@ -5,17 +5,13 @@ from PIL import Image, ImageDraw, ImageFont
 import adafruit_ssd1306
 import os
 import time
+from cloud import Cloud
+import sys
 
-programs = [
-	'sunrise',
-	'sunset',
-	'rainbow_lightning',
-	'lightning',
-	'rainbow_cylon'
-]
+cloud = Cloud()
 
+programs = cloud.get_programs()
 program_index = 0
-
 
 # Create the I2C interface.
 i2c = busio.I2C(board.SCL, board.SDA)
@@ -55,7 +51,6 @@ button_C.pull = Pull.UP
 disp.fill(0)
 disp.show()
 
-
 # Create blank image for drawing.
 # Make sure to create image with mode '1' for 1-bit color.
 width = disp.width
@@ -71,105 +66,135 @@ draw.rectangle((0, 0, width, height), outline=0, fill=0)
 # Load default font.
 font = ImageFont.load_default()
 draw.text((0, 0), "Initializing...", font=font, fill="white")
+disp.image(image)
+disp.show()
+time.sleep(.2)
 
 
 def shutdown():
-	draw.rectangle((0, 0, width, height), outline=0, fill=0)
-	draw.text((0, 0), "shutdown started", font=font, fill="white")
-	# Display image.
-	disp.image(image)
-	disp.display()
-	os.system("sudo shutdown -h now")
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    draw.text((0, 0), "shutdown started", font=font, fill="white")
+    # Display image.
+    disp.image(image)
+    disp.show()
+    time.sleep(.1)
+    os.system("sudo shutdown -h now")
+
 
 def select(index):
-	global program_index
-	if index < 0 or index > len(programs) - 1:
-		index = 0
-		program_index = 0
+    global program_index
+    if index < 0 or index > len(programs) - 1:
+        index = 0
+        program_index = 0
 
-	print("Index is {}, program is {}".format(program_index, programs[program_index]))
+    print("Index is {}, program is {}".format(program_index, programs[program_index]))
 
-	# Draw a black filled box to clear the image.
-	draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    # Draw a black filled box to clear the image.
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
 
-	draw.text((0, 0), "Loading %s" % programs[index], font=font, fill="white")
+    draw.text((0, 0), "Loading %s" % programs[index], font=font, fill="white")
 
-	draw.text((0, 26), "Ready", font=font, fill="white")
-	# Display image.
-	disp.image(image)
-	disp.show()
-	time.sleep(.1)
+    draw.text((0, 26), "Ready", font=font, fill="white")
+    # Display image.
+    disp.image(image)
+    disp.show()
+    time.sleep(.1)
 
 
+def select_program(p_index):
+    print("program_index is {}".format(p_index))
+    select(p_index)
+
+
+def run_program():
+    try:
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+
+        draw.text((0, 0), "Running %s" % programs[program_index], font=font, fill="white")
+
+        # draw.text((0, 26), "Ready", font=font, fill="white")
+        # Display image.
+        disp.image(image)
+        disp.show()
+        time.sleep(.1)
+        func = getattr(cloud, programs[program_index])
+        func()
+        time.sleep(10)
+        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+
+        draw.text((0, 0), "Finished %s" % programs[program_index], font=font, fill="white")
+
+        # draw.text((0, 26), "Ready", font=font, fill="white")
+        # Display image.
+        disp.image(image)
+        disp.show()
+        time.sleep(.1)
+        print("finished {}".format(programs[program_index]))
+    except AttributeError:
+        print("function {} not found".format(programs[program_index]))
+
+
+select_program(0)
 while True:
-	if button_U.value:  # button is released
-		# draw.polygon([(20, 20), (30, 2), (40, 20)], outline=255, fill=0)  # Up
-		pass
-	else:  # button is pressed:
-		pass
-		# draw.polygon([(20, 20), (30, 2), (40, 20)], outline=255, fill=1)  # Up filled
+    if button_U.value:  # button is released
+        # draw.polygon([(20, 20), (30, 2), (40, 20)], outline=255, fill=0)  # Up
+        pass
+    else:  # button is pressed:
+        pass
+    # draw.polygon([(20, 20), (30, 2), (40, 20)], outline=255, fill=1)  # Up filled
 
-	if button_L.value:  # button is released
-		pass
+    if button_L.value:  # button is released
+        pass
 
-		# draw.polygon([(0, 30), (18, 21), (18, 41)], outline=255, fill=0)  # left
-	else:  # button is pressed:
-		print("program_index is {}".format(program_index))
-		print("right selected, decrementing program_index now")
-		program_index = program_index - 1
-		print("program_index is {}".format(program_index))
+    # draw.polygon([(0, 30), (18, 21), (18, 41)], outline=255, fill=0)  # left
+    else:  # button is pressed:
+        print("right selected, decrementing program_index now")
+        program_index = program_index - 1
+        select_program(program_index)
+        # draw.polygon([(0, 30), (18, 21), (18, 41)], outline=255, fill=1)  # left filled
+        continue
+    if button_R.value:  # button is released
+        pass
+    # draw.polygon([(60, 30), (42, 21), (42, 41)], outline=255, fill=0)  # right
+    else:  # button is pressed:
+        print("left selected, incrementing program_index now")
+        program_index = program_index + 1
+        select_program(program_index)
+        # draw.polygon([(60, 30), (42, 21), (42, 41)], outline=255, fill=1)  # right filled
+        continue
+    if button_D.value:  # button is released
+        pass
+    # draw.polygon([(30, 60), (40, 42), (20, 42)], outline=255, fill=0)  # down
+    else:  # button is pressed:
+        pass
+    # draw.polygon([(30, 60), (40, 42), (20, 42)], outline=255, fill=1)  # down filled
 
-		select(program_index)
-		# draw.polygon([(0, 30), (18, 21), (18, 41)], outline=255, fill=1)  # left filled
-		continue
-	if button_R.value:  # button is released
-		pass
-		# draw.polygon([(60, 30), (42, 21), (42, 41)], outline=255, fill=0)  # right
-	else:  # button is pressed:
-		print("program_index is {}".format(program_index))
-		print("right selected, incrementing program_index now")
-		program_index = program_index + 1
-		print("program_index is {}".format(program_index))
-		select(program_index)
-		# draw.polygon([(60, 30), (42, 21), (42, 41)], outline=255, fill=1)  # right filled
-		continue
-	if button_D.value:  # button is released
-		pass
-		# draw.polygon([(30, 60), (40, 42), (20, 42)], outline=255, fill=0)  # down
-	else:  # button is pressed:
-		pass
-		# draw.polygon([(30, 60), (40, 42), (20, 42)], outline=255, fill=1)  # down filled
+    if button_C.value:  # button is released
+        pass
+    # draw.rectangle((20, 22, 40, 40), outline=255, fill=0)  # center
+    else:  # button is pressed:
+        pass
+    # draw.rectangle((20, 22, 40, 40), outline=255, fill=1)  # center filled
 
-	if button_C.value:  # button is released
-		pass
-		# draw.rectangle((20, 22, 40, 40), outline=255, fill=0)  # center
-	else:  # button is pressed:
-		pass
-		# draw.rectangle((20, 22, 40, 40), outline=255, fill=1)  # center filled
+    if button_A.value:  # button is released
+        pass
+    # draw.ellipse((70, 40, 90, 60), outline=255, fill=0)  # A button
+    else:  # button is pressed:
+        pass
+    # draw.ellipse((70, 40, 90, 60), outline=255, fill=1)  # A button filled
 
-	if button_A.value:  # button is released
-		pass
-		# draw.ellipse((70, 40, 90, 60), outline=255, fill=0)  # A button
-	else:  # button is pressed:
-		pass
-		# draw.ellipse((70, 40, 90, 60), outline=255, fill=1)  # A button filled
+    if button_B.value:  # button is released
+        pass
 
-	if button_B.value:  # button is released
-		# pass
-		draw.ellipse((100, 20, 120, 40), outline=255, fill=0)  # B button
-	else:  # button is pressed:
-		draw.ellipse((100, 20, 120, 40), outline=255, fill=1)  # B button filled
-		# pass
+    else:  # button is pressed:
+        run_program()
+    # pass
 
-	if not button_A.value and not button_B.value and not button_C.value:
-		shutdown()
-	else:
-		# Display image.
-		# disp.image(image)
-		pass
+    if not button_A.value and not button_B.value and not button_C.value:
+        shutdown()
+    else:
+        # Display image.
+        # disp.image(image)
+        pass
 
-	disp.show()
-
-
-
-
+    disp.show()
