@@ -113,7 +113,7 @@ def all(color):
 
 
 def sunrise():
-	transition_time = 100
+	transition_time = 1
 	client.put_pixels(black)
 	# fade from black to red
 	for v in range (0, 255):
