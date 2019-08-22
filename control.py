@@ -6,9 +6,11 @@ import adafruit_ssd1306
 import os
 import time
 from cloud import Cloud
-import sys
+from radio import Radio
+
 
 cloud = Cloud()
+radio = Radio()
 
 programs = cloud.get_programs()
 program_index = 0
@@ -81,11 +83,14 @@ def shutdown():
     os.system("sudo shutdown -h now")
 
 
-def select(index):
+def select_program(index):
+    print("program_index is {}".format(p_index))
     global program_index
-    if index < 0 or index > len(programs) - 1:
+    if index < 0:
+        index = len(programs) - 1
+    if index > len(programs) - 1:
         index = 0
-        program_index = 0
+    program_index = index
 
     print("Index is {}, program is {}".format(program_index, programs[program_index]))
 
@@ -100,88 +105,68 @@ def select(index):
     disp.show()
     time.sleep(.1)
 
-
-def select_program(p_index):
-    print("program_index is {}".format(p_index))
-    select(p_index)
+def update_display():
+    draw.rectangle((0, 0, width, height), outline=0, fill=0)
+    draw.text((0, 0), "{} {}".format(cloud), font=font, fill="white")
+    draw.text((0,10), "{}".format(radio), font=font, fill="white")
+    disp.image(image)
+    disp.show()
+    time.sleep(.1)
 
 
 def run_program():
+    cloud.on()
+    update_display()
     try:
-        draw.rectangle((0, 0, width, height), outline=0, fill=0)
-
-        draw.text((0, 0), "Running %s" % programs[program_index], font=font, fill="white")
-
-        # draw.text((0, 26), "Ready", font=font, fill="white")
-        # Display image.
-        disp.image(image)
-        disp.show()
-        time.sleep(.1)
         func = getattr(cloud, programs[program_index])
         func()
-        time.sleep(10)
-        draw.rectangle((0, 0, width, height), outline=0, fill=0)
+        time.sleep(2)
 
-        draw.text((0, 0), "Finished %s" % programs[program_index], font=font, fill="white")
-
-        # draw.text((0, 26), "Ready", font=font, fill="white")
-        # Display image.
-        disp.image(image)
-        disp.show()
-        time.sleep(.1)
-        print("finished {}".format(programs[program_index]))
     except AttributeError:
         print("function {} not found".format(programs[program_index]))
+    cloud.off()
+    update_display()
 
 
 select_program(0)
+run_program()
 while True:
     if button_U.value:  # button is released
-        # draw.polygon([(20, 20), (30, 2), (40, 20)], outline=255, fill=0)  # Up
-        pass
+        radio.next()
+        update_display()
     else:  # button is pressed:
         pass
-    # draw.polygon([(20, 20), (30, 2), (40, 20)], outline=255, fill=1)  # Up filled
 
     if button_L.value:  # button is released
         pass
-
-    # draw.polygon([(0, 30), (18, 21), (18, 41)], outline=255, fill=0)  # left
     else:  # button is pressed:
-        print("right selected, decrementing program_index now")
-        program_index = program_index - 1
-        select_program(program_index)
-        # draw.polygon([(0, 30), (18, 21), (18, 41)], outline=255, fill=1)  # left filled
+        cloud.previous()
+        update_display()
         continue
     if button_R.value:  # button is released
         pass
-    # draw.polygon([(60, 30), (42, 21), (42, 41)], outline=255, fill=0)  # right
     else:  # button is pressed:
-        print("left selected, incrementing program_index now")
-        program_index = program_index + 1
-        select_program(program_index)
-        # draw.polygon([(60, 30), (42, 21), (42, 41)], outline=255, fill=1)  # right filled
+        cloud.next()
+        update_display()
         continue
     if button_D.value:  # button is released
+        radio.previous()
+        update_display()
         pass
-    # draw.polygon([(30, 60), (40, 42), (20, 42)], outline=255, fill=0)  # down
     else:  # button is pressed:
         pass
-    # draw.polygon([(30, 60), (40, 42), (20, 42)], outline=255, fill=1)  # down filled
 
     if button_C.value:  # button is released
         pass
-    # draw.rectangle((20, 22, 40, 40), outline=255, fill=0)  # center
     else:  # button is pressed:
         pass
-    # draw.rectangle((20, 22, 40, 40), outline=255, fill=1)  # center filled
 
     if button_A.value:  # button is released
+        radio.toggle()
+        update_display()
         pass
-    # draw.ellipse((70, 40, 90, 60), outline=255, fill=0)  # A button
     else:  # button is pressed:
         pass
-    # draw.ellipse((70, 40, 90, 60), outline=255, fill=1)  # A button filled
 
     if button_B.value:  # button is released
         pass

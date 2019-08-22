@@ -4,8 +4,6 @@ import opc
 import time
 import sys
 
-debug = False
-
 
 class Cloud:
     def __init__(self):
@@ -14,6 +12,7 @@ class Cloud:
         self.flashLimit = 8
         self.flashFrequency = 80
         self.timefactor = 1000
+        self.debug = True
 
         self.programs = [
             'sunrise',
@@ -24,20 +23,54 @@ class Cloud:
             'lightning_rainbow',
             'lightning'
         ]
+        self.program_index = 0
+        self.state = False
 
-        if debug:
-            self.timefactor = 100
+        if self.debug:
+            self.timefactor = 1000
 
         # client = opc.Client('localhost:7890')
-        self.client = opc.Client('cloud:7890')
+        # self.client = opc.Client('cloud:7890')
+        self.client = opc.Client('10.0.0.166:7890')
         self.client.set_interpolation(True)
 
         self.black = [(0, 0, 0)] * self.numleds
         self.white = [(255, 255, 255)] * self.numleds
         self.red = [(255, 0, 0)] * self.numleds
 
+    def str(self):
+        disp = ""
+        if self.state:
+            disp = "Running"
+        else:
+            disp = "Finished"
+        return "{} -- {}".format(disp, self.programs[self.program_index])
+
     def get_programs(self):
         return self.programs
+
+    def current(self):
+        return self.programs[self.program_index]
+
+    def next(self):
+        self.program_index = self.program_index + 1
+        if self.program_index >= len(self.programs):
+            self.program_index = 0
+        return self.programs[self.program_index]
+
+    def previous(self):
+        self.program_index = self.program_index + 1
+        if self.program_index < 0:
+            self.program_index = len(self.programs) - 1
+        return self.programs[self.program_index]
+
+    def on(self):
+        self.state = True
+        return self.state
+
+    def off(self):
+        self.state = False
+        return self.state
 
     def color_testing(self):
         self.client.put_pixels(self.black)
@@ -54,13 +87,13 @@ class Cloud:
         print("Red in rgb is (255, 0, 0)")
         print("Red in hex is #FF0000")
         hsv = (0, 1, 1)
-        if debug:
+        if self.debug:
             print("hsv is {}".format(hsv))
         rgb = hsv_to_rgb(hsv[0], hsv[1], hsv[2])
-        if debug:
+        if self.debug:
             print("rgb is {}".format(rgb))
         hex_val = "#" + dec2hex(rgb[0]) + dec2hex(rgb[1]) + dec2hex(rgb[2])
-        if debug:
+        if self.debug:
             print("hex is {}".format(hex_val))
         self.fill_solid(0, self.numleds, rgb)
 
@@ -80,21 +113,60 @@ class Cloud:
             time.sleep(.1)
         self.client.put_pixels(self.black)
 
-    def rainbow_cylon(self):
-        for h in range(0, 255):
+    def rainbow_chase(self, right=False):
+        interval = 255 / self.numleds
+        h = 0
+        bow = []
+        for led in range(0, self.numleds):
+            bow = bow + [hsv_to_rgb(h, 1.0, 1.0)]
+            h = h + interval
 
-            # First slide the led in one direction
+        l = len(bow)
+        if self.debug:
+            print(bow)
+            print("bow length is {}".format(l))
+        for loop in range(0, 14):
             for i in range(0, self.numleds):
-                print("i is {} h is {}".format(i, h))
-                self.fill_solid(i, 10, hsv_to_rgb(h, 1.0, 1.0))
-            # time.sleep(.01)
-            for i in range(self.numleds, 0):
-                print("i is {} h is {}".format(i, h))
-                self.fill_solid(i, 10, hsv_to_rgb(h, 1.0, 1.0))
-                h = h - 1
-        # time.sleep(.01)
+                left = l - i
+                start = bow[i:l]
+                end = bow[0:i]
+                show = start + end
+                if self.debug:
+                    print("Start is {}, left is {}, startlen is {}, endlen is {}, total is {}".format(i, left, len(start), len(end), len(show)))
+                self.client.put_pixels(show)
+                time.sleep(.2)
 
-        self.fill_solid(0, self.numleds, (0, 0, 0))
+
+        self.client.put_pixels(self.white)
+        time.sleep(1)
+        self.client.put_pixels(self.black)
+        time.sleep(1)
+
+
+        self.client.put_pixels(bow)
+        time.sleep(5)
+        self.client.put_pixels(self.white)
+        time.sleep(1)
+        self.client.put_pixels(self.black)
+        time.sleep(1)
+
+
+    def rainbow_cylon(self):
+        for loop in range(0, 10):
+            h = 0
+            increment = 255 / self.numleds
+            for led in range(0, self.numleds):
+                h = h + increment
+                print("Showing hue {} at LED {}".format(h, led))
+                self.fill_solid(led, 10, hsv_to_rgb(h, 1.0, 1.0))
+                time.sleep(.05)
+            print("REVERSING")
+            for led in range(self.numleds, 0, -1):
+                print
+                h = h - increment
+                print("reverse Showing hue {} at LED {}".format(h, led))
+                self.fill_solid(led, 10, hsv_to_rgb(h, 1.0, 1.0))
+                time.sleep(.05)
         self.client.put_pixels(self.black)
 
     def all(self, color):
@@ -102,7 +174,7 @@ class Cloud:
         self.client.put_pixels(color_list)
 
     def sunrise(self):
-        transition_time = 1
+        transition_time = 10
         self.client.put_pixels(self.black)
         # fade from black to red
         for v in range(0, 255):
@@ -146,7 +218,7 @@ class Cloud:
             self.random_delay(0, 100, 50)
 
         self.client.put_pixels(self.black)
-        self.random_delay(0, self.flashFrequency)
+        # self.random_delay(0, self.flashFrequency)
 
     def lightning_rainbow(self):
         self.client.put_pixels(self.black)
@@ -172,7 +244,7 @@ class Cloud:
         self.random_delay(0, self.flashFrequency)
 
     def fill_solid(self, ledstart, ledlen, color):
-        if debug:
+        if self.debug:
             print("color is {}".format(color))
         # hex = (dec2hex(color[0]), dec2hex(color[1]), dec2hex(color[2]))
         # print("hex is {}".format(hex))
@@ -184,7 +256,7 @@ class Cloud:
 
     def random_delay(self, min_delay, max_delay, base=0):
         waiting = (base + random.randint(min_delay, max_delay)) / self.timefactor
-        if debug:
+        if self.debug:
             print("Waiting {} seconds.".format(waiting))
         time.sleep(waiting)
 
@@ -225,7 +297,7 @@ def hsv_to_rgb(h, s, v):
 def main():
     cloud = Cloud()
     print("Debug is {}, running with a timefactor of {}.".format(cloud.debug, 1 / cloud.timefactor))
-    cloud.sunrise()
+    cloud.rainbow_chase()
 
 
 if __name__ == "__main__":
