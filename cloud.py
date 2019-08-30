@@ -16,17 +16,13 @@ class Cloud:
         self.debug = False
 
         self.programs = [
-            'sunrise',
-            'color_testing',
+            'storm',
+            'rainbow_storm',
+            'cylon',
             'rainbow_cylon',
             'rainbow_chase',
             'rainbow_chase_rev',
-            'test',
-            'test_fillsolid',
-            'lightning_rainbow',
-            'lightning',
-            'storm',
-            'rainbow_storm'
+            'sunrise'
         ]
         self.program_index = 0
         self.state = False
@@ -212,6 +208,21 @@ class Cloud:
         self.client.put_pixels(self.black)
         time.sleep(1)
 
+    def cylon(self):
+        for loop in range(0, 10):
+            h = 0
+            for led in range(0, self.numleds):
+                print("Showing hue {} at LED {}".format(h, led))
+                self.fill_solid(led, 10, hsv_to_rgb(h, 1.0, 1.0))
+                time.sleep(.05)
+            print("REVERSING")
+            time.sleep(.1)
+            for led in range(self.numleds, 0, -1):
+                print("Showing hue {} at LED {}".format(h, led))
+                self.fill_solid(led, 10, hsv_to_rgb(h, 1.0, 1.0))
+                time.sleep(.05)
+            time.sleep(.1)
+        self.client.put_pixels(self.black)
 
     def rainbow_cylon(self):
         for loop in range(0, 10):
