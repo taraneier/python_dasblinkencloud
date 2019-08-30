@@ -3,21 +3,21 @@ from omxplayer.player import OMXPlayer
 
 class Radio:
     def __init__(self):
-        self.stations = [('KPOA', 'https://16693.live.streamtheworld.com/KPOAFM.mp3'),
+        self.stations = [('KPOA', 'https://16693.live.streamtheworld.com/KPOAFM.mp3 '),
                          ('KAZU', 'https://icecastle.csumb.edu/live128'),
                          ('KZSC', 'http://streaming.kzsc.org:8000/kzschigh')
                          ]
         self.station_index = 0
         self.play = False
-        self.player = OMXPlayer()
+        self.player = False
 
-    def str(self):
+    def __str__(self):
         state = ""
         if self.play:
             state = "on"
         else:
             state = "off"
-        return "{} -- {}".format(self.stations[self.station_index][0], self.play)
+        return "{} -- {}".format(self.stations[self.station_index][0], state)
 
     def get_stations(self):
         return self.stations
@@ -57,13 +57,14 @@ class Radio:
 
     def off(self):
         self.play = False
-        print("stopping {}".format(self.stations[self.station_index][0]))
-        self.player.quit()
+        if self.player:
+            print("stopping {}".format(self.stations[self.station_index][0]))
+            self.player.quit()
         return self.play
 
 
-
 def main():
+    print("in radio main, wtf")
     radio = Radio()
     print(radio.on())
     print(radio.next())

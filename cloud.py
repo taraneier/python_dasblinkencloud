@@ -3,6 +3,7 @@ import random
 import opc
 import time
 import sys
+import getopt
 
 
 class Cloud:
@@ -12,12 +13,14 @@ class Cloud:
         self.flashLimit = 8
         self.flashFrequency = 80
         self.timefactor = 1000
-        self.debug = True
+        self.debug = False
 
         self.programs = [
             'sunrise',
             'color_testing',
             'rainbow_cylon',
+            'rainbow_chase',
+            'rainbow_chase_rev',
             'test',
             'test_fillsolid',
             'lightning_rainbow',
@@ -26,25 +29,27 @@ class Cloud:
         self.program_index = 0
         self.state = False
 
-        if self.debug:
-            self.timefactor = 1000
-
         # client = opc.Client('localhost:7890')
-        # self.client = opc.Client('cloud:7890')
-        self.client = opc.Client('10.0.0.166:7890')
+        self.client = opc.Client('cloud.local:7890')
+        # self.client = opc.Client('10.0.0.166:7890')
         self.client.set_interpolation(True)
 
         self.black = [(0, 0, 0)] * self.numleds
         self.white = [(255, 255, 255)] * self.numleds
         self.red = [(255, 0, 0)] * self.numleds
 
-    def str(self):
-        disp = ""
+    def __str__(self):
         if self.state:
             disp = "Running"
         else:
             disp = "Finished"
-        return "{} -- {}".format(disp, self.programs[self.program_index])
+        return "{} -- {}".format(self.programs[self.program_index], disp)
+
+    def set_debug(self, value):
+        self.debug = value
+
+    def set_timefactor(self, value):
+        self.timefactor = value
 
     def get_programs(self):
         return self.programs
@@ -59,10 +64,15 @@ class Cloud:
         return self.programs[self.program_index]
 
     def previous(self):
-        self.program_index = self.program_index + 1
+        self.program_index = self.program_index - 1
         if self.program_index < 0:
             self.program_index = len(self.programs) - 1
         return self.programs[self.program_index]
+
+    def select(self, program):
+        for i, x in enumerate(self.programs):
+            if x == program:
+                self.program_index = i
 
     def on(self):
         self.state = True
@@ -71,6 +81,19 @@ class Cloud:
     def off(self):
         self.state = False
         return self.state
+
+    def run(self):
+        self.on()
+        # update_display()
+        try:
+            func = getattr(self, self.programs[self.program_index])
+            func()
+            time.sleep(2)
+
+        except AttributeError:
+            print("function {} not found".format(self.programs[self.program_index]))
+        self.off()
+        # update_display()
 
     def color_testing(self):
         self.client.put_pixels(self.black)
@@ -113,7 +136,7 @@ class Cloud:
             time.sleep(.1)
         self.client.put_pixels(self.black)
 
-    def rainbow_chase(self, right=False):
+    def rainbow_chase(self):
         interval = 255 / self.numleds
         h = 0
         bow = []
@@ -130,6 +153,43 @@ class Cloud:
                 left = l - i
                 start = bow[i:l]
                 end = bow[0:i]
+                show = start + end
+                if self.debug:
+                    print("Start is {}, left is {}, startlen is {}, endlen is {}, total is {}".format(i, left, len(start), len(end), len(show)))
+                self.client.put_pixels(show)
+                time.sleep(.2)
+
+
+        self.client.put_pixels(self.white)
+        time.sleep(1)
+        self.client.put_pixels(self.black)
+        time.sleep(1)
+
+
+        self.client.put_pixels(bow)
+        time.sleep(5)
+        self.client.put_pixels(self.white)
+        time.sleep(1)
+        self.client.put_pixels(self.black)
+        time.sleep(1)
+
+    def rainbow_chase_rev(self):
+        interval = 255 / self.numleds
+        h = 0
+        bow = []
+        for led in range(0, self.numleds):
+            bow = bow + [hsv_to_rgb(h, 1.0, 1.0)]
+            h = h + interval
+
+        l = len(bow)
+        if self.debug:
+            print(bow)
+            print("bow length is {}".format(l))
+        for loop in range(0, 14):
+            for i in range(0, self.numleds):
+                left = l - i
+                start = bow[-i:]
+                end = bow[0:left]
                 show = start + end
                 if self.debug:
                     print("Start is {}, left is {}, startlen is {}, endlen is {}, total is {}".format(i, left, len(start), len(end), len(show)))
@@ -294,15 +354,39 @@ def hsv_to_rgb(h, s, v):
     return r, g, b
 
 
-def main():
+def main(argv):
     cloud = Cloud()
+
+    help_string = "cloud.py -p program -t timefactor -v"
+    try:
+        opts, args = getopt.getopt(argv, "p:t:v", ["program", "timefactor", "verbose"])
+    except getopt.GetoptError:
+        print(help_string)
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt in ("-v", "--verbose"):
+            cloud.set_debug(True)
+        elif opt in ("-t", "--timefactor"):
+            if (arg.isnumeric()):
+                cloud.set_timefactor(int(arg))
+            else:
+                print("timefactor should be numeric (ex. 10, 100, 1000)")
+        elif opt in ("-p", "--program"):
+            cloud.select(arg)
+            cloud.run()
     print("Debug is {}, running with a timefactor of {}.".format(cloud.debug, 1 / cloud.timefactor))
-    cloud.rainbow_chase()
+    print(cloud)
+
+
+    # cloud.rainbow_chase()
+    # cloud.rainbow_chase_rev()
+    # cloud.rainbow_cylon()
+    # cloud.lightning_rainbow()
 
 
 if __name__ == "__main__":
     try:
-        main()
+        main(sys.argv[1:])
     except KeyboardInterrupt:
         print('Interrupted')
         sys.exit(0)
