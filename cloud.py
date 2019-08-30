@@ -24,7 +24,9 @@ class Cloud:
             'test',
             'test_fillsolid',
             'lightning_rainbow',
-            'lightning'
+            'lightning',
+            'storm',
+            'rainbow_storm'
         ]
         self.program_index = 0
         self.state = False
@@ -254,6 +256,18 @@ class Cloud:
         self.client.put_pixels(self.white)
         time.sleep(transition_time * 2)
         self.client.put_pixels(self.black)
+
+    def rainbow_storm(self):
+        self.storm(True)
+
+    def storm(self, rainbow=False):
+        strikes = random.randint(3,10)
+        for strikes in range(0, strikes):
+            if rainbow:
+                self.lightning_rainbow()
+            else:
+                self.lightning()
+            self.random_delay(3, 16)
 
     def lightning(self):
         self.client.put_pixels(self.black)
